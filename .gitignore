@@ -1,12 +1,10 @@
 **/.terraform
 
 **/*.json
-**/*.tfstate
+**/*.tfstate*
 **/*.tfstate.backup
-**/terraform.tfvars
-**/terraform.tfvars.json
+**/terraform.tfvars*
 **/override.tf
-**/override.tf.json
-**/terraform.tfstate.d
-**/crash.log
-**/crash.log.*
+**/override.tf*
+**/crash.log*
+**/*.lock*
