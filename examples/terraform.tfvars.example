@@ -1,0 +1,82 @@
+# Example terraform.tfvars file
+# Copy this file to terraform.tfvars and modify the values as needed
+
+# Project Configuration
+project_name = "ai-chatbot"
+environment  = "dev"
+owner        = "ai-engineering-team"
+aws_region   = "us-east-1"
+
+# OpenSearch Serverless Configuration (Primary Vector Database)
+opensearch_collection_name = "ai-chatbot-vectors"
+opensearch_index_name      = "knowledge-base"
+opensearch_vector_field    = "content_vector"
+opensearch_vector_dimension = 1536
+opensearch_similarity_metric = "cosine"
+opensearch_vector_engine = "nmslib"
+
+# OpenSearch Security and Access
+opensearch_enable_public_access = false
+opensearch_enable_saml_auth     = false
+opensearch_data_access_principals = [
+  # "arn:aws:iam::123456789012:role/OpenSearchDataAccess"
+]
+
+# S3 Configuration (Optional Backup Storage)
+s3_enable_versioning     = true
+s3_enable_replication    = false  # Set to true for production
+s3_enable_access_logging = true
+s3_force_destroy        = true   # Set to false for production
+enable_s3_backup       = false  # Enable for backup storage
+
+# Lambda AI Execution Configuration
+lambda_runtime                        = "python3.11"
+lambda_handler                        = "app.lambda_handler"
+lambda_timeout                        = 300
+lambda_memory_size                    = 3008
+lambda_architecture                   = "x86_64"
+lambda_source_file                    = "lambda_function.zip"  # Path to your Lambda deployment package
+lambda_enable_provisioned_concurrency = false  # Set to true for production workloads
+lambda_provisioned_concurrency        = 5
+lambda_enable_dlq                     = true
+lambda_enable_xray                    = true
+lambda_enable_insights                = true
+lambda_log_retention_days             = 14
+
+# VPC Configuration (uncomment and configure if Lambda needs VPC access)
+# lambda_vpc_config = {
+#   subnet_ids         = ["subnet-12345678", "subnet-87654321"]
+#   security_group_ids = ["sg-abcdef12"]
+# }
+
+# AI/ML Model Configuration
+bedrock_embedding_model_id = "amazon.titan-embed-text-v1"
+bedrock_text_model_id     = "anthropic.claude-3-sonnet-20240229-v1:0"
+bedrock_max_tokens        = 4000
+bedrock_temperature       = 0.1
+
+# Vector Search Configuration
+vector_similarity_threshold = 0.8
+vector_max_results         = 10
+vector_search_timeout      = 30
+
+# Knowledge Base Configuration
+kb_chunk_size            = 1000
+kb_min_relevance_score   = 0.7
+kb_enable_hybrid_search  = true
+
+# Performance and Monitoring
+enable_performance_metrics = true
+log_level                 = "INFO"
+
+# Lambda Layers (add your custom layers)
+lambda_layers = [
+  # "arn:aws:lambda:us-east-1:123456789012:layer:opensearch-py:1"
+]
+
+# Monitoring and Alerting
+enable_alerting = false  # Set to true to enable SNS alerts
+# alert_email     = "alerts@yourcompany.com"
+
+# Cross-region replication (for production environments)
+replication_region = "us-west-2"
