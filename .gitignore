@@ -9,3 +9,4 @@
 **/override.tf*
 **/crash.log*
 **/*.lock*
+**/.zip
