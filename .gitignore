@@ -1,6 +1,7 @@
 **/.terraform
 
 **/*.json
+**/*.ndjson
 **/*.tfstate*
 **/*.tfstate.backup
 **/terraform.tfvars*

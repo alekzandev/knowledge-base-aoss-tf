@@ -1,33 +1,63 @@
-
 import requests
 import json
 import re
 from bs4 import BeautifulSoup
+from typing import List, Dict
 
 def fetch_cda(query: str, pages: int = 1) -> dict:
+    """Fetch articles from Zendesk API"""
     url = f"https://nequi.zendesk.com/api/v2/help_center/articles/search?query={query}&per_page={pages}"
 
     payload = {}
     headers = {
-    'Content-Type': 'application/json',
+        'Content-Type': 'application/json',
     }
 
     response = requests.request("GET", url, headers=headers, data=payload)
     zdkskjson = json.loads(response.text)
     return zdkskjson
 
-def clean_html_content(html_text: str, preserve_links: bool = True, preserve_structure: bool = True, remove_images: bool = True) -> str:
+def fetch_all_articles(per_page: int = 100) -> List[Dict]:
+    """Fetch all articles from Zendesk API with pagination"""
+    all_articles = []
+    page = 1
+    
+    while True:
+        url = f"https://nequi.zendesk.com/api/v2/help_center/articles?per_page={per_page}&page={page}"
+        
+        headers = {
+            'Content-Type': 'application/json',
+        }
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            articles = data.get('articles', [])
+            
+            if not articles:
+                break
+                
+            all_articles.extend(articles)
+            
+            # Check if there are more pages
+            if not data.get('next_page'):
+                break
+                
+            page += 1
+            print(f"Fetched page {page-1}, total articles so far: {len(all_articles)}")
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching articles: {e}")
+            break
+    
+    return all_articles
+
+def clean_html_content(html_text: str) -> str:
     """
-    Clean HTML content while preserving meaningful text and structure.
-    
-    Args:
-        html_text: Raw HTML content to clean
-        preserve_links: Whether to preserve link URLs in parentheses
-        preserve_structure: Whether to preserve basic text structure (paragraphs, lists)
-        remove_images: Whether to completely remove images or keep simple placeholders
-    
-    Returns:
-        Cleaned text content
+    Clean HTML content while preserving meaningful text structure.
+    Completely removes images and cleans up formatting.
     """
     if not html_text:
         return ""
@@ -39,35 +69,19 @@ def clean_html_content(html_text: str, preserve_links: bool = True, preserve_str
     for script in soup(["script", "style"]):
         script.decompose()
     
-    # Handle links if we want to preserve them
-    if preserve_links:
-        for link in soup.find_all('a', href=True):
-            link_text = link.get_text().strip()
-            link_url = link['href']
-            if link_text and link_url:
-                # Replace link with text + URL in parentheses
-                link.replace_with(f"{link_text} ({link_url})")
-    
-    # Handle images - completely remove them or keep minimal placeholder
+    # Completely remove images
     for img in soup.find_all('img'):
-        if remove_images:
-            # Completely remove images without any trace
-            img.decompose()
-        else:
-            # Keep only alt text if available, otherwise remove
-            alt_text = img.get('alt', '').strip()
-            if alt_text:
-                img.replace_with(f"[Image: {alt_text}]")
-            else:
-                img.decompose()
+        img.decompose()
     
-    # Get text content
-    if preserve_structure:
-        # Preserve paragraph breaks and list structure
-        text = _extract_structured_text(soup)
-    else:
-        # Simple text extraction
-        text = soup.get_text()
+    # Handle links - preserve text and URL
+    for link in soup.find_all('a', href=True):
+        link_text = link.get_text().strip()
+        link_url = link['href']
+        if link_text and link_url:
+            link.replace_with(f"{link_text} ({link_url})")
+    
+    # Extract structured text
+    text = _extract_structured_text(soup)
     
     # Clean up whitespace
     text = _clean_whitespace(text)
@@ -78,15 +92,15 @@ def _extract_structured_text(soup) -> str:
     """Extract text while preserving basic structure."""
     structured_text = []
     
-    for element in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'div']):
+    for element in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'div', 'span']):
         text = element.get_text().strip()
-        if text:
+        if text and text not in [t.strip() for t in structured_text]:  # Avoid duplicates
             # Add bullet points for list items
             if element.name == 'li':
                 structured_text.append(f"• {text}")
             # Add emphasis for headers
             elif element.name.startswith('h'):
-                structured_text.append(f"\n{text.upper()}\n")
+                structured_text.append(f"\n{text}\n")
             else:
                 structured_text.append(text)
     
@@ -94,82 +108,147 @@ def _extract_structured_text(soup) -> str:
     if not structured_text:
         return soup.get_text()
     
-    return '\n\n'.join(structured_text)
+    return '\n'.join(structured_text)
 
 def _clean_whitespace(text: str) -> str:
     """Clean up excessive whitespace."""
     # Replace multiple spaces with single space
     text = re.sub(r' +', ' ', text)
     
-    # Replace multiple newlines with double newlines
+    # Replace multiple newlines with double newlines max
     text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
     
     # Remove leading/trailing whitespace from each line
     lines = [line.strip() for line in text.split('\n')]
-    text = '\n'.join(lines)
+    text = '\n'.join(line for line in lines if line)  # Remove empty lines
     
     return text.strip()
 
-def clean_html_simple(html_text: str) -> str:
+def curate_article(article: dict) -> dict:
     """
-    Simple HTML cleaning - just remove all tags and clean whitespace.
+    Curate article data with only the specified fields.
+    
+    Fields: id, html_url, updated_at, title, outdated, section_id, body (cleaned)
     """
-    if not html_text:
-        return ""
-    
-    # Remove HTML tags using regex
-    text = re.sub(r'<[^>]+>', '', html_text)
-    
-    # Decode HTML entities
-    from html import unescape
-    text = unescape(text)
-    
-    # Clean whitespace
-    text = _clean_whitespace(text)
-    
-    return text
-
-# Integration with your ETL script
-def clean_article_body(body: str) -> str:
-    """
-    Specific function to clean article body content for your use case.
-    Removes all images and their sources completely.
-    """
-    return clean_html_content(
-        body, 
-        preserve_links=True, 
-        preserve_structure=True,
-        remove_images=True  # This will completely remove all images
-    )
-
-def process_article(article: dict) -> dict:
-    """Process and clean article data."""
     return {
-        'title': article.get('title', ''),
-        'url': article.get('html_url', ''),
+        'id': article.get('id'),
+        'html_url': article.get('html_url', ''),
         'updated_at': article.get('updated_at', ''),
+        'title': article.get('title', ''),
         'outdated': article.get('outdated', False),
-        'labels': article.get('label_names', []),
-        'body': clean_article_body(article.get('body', '')),
-        'raw_body': article.get('body', ''),  # Keep original for reference
+        'section_id': article.get('section_id'),
+        'body': clean_html_content(article.get('body', ''))
     }
 
-if __name__ == "__main__":
-    query = "puedo tener paypal en nequi?"
-    zdkskjson = fetch_cda(query)
-    results = zdkskjson["results"]
-    
-    if results:
-        article = results[0]
-        processed_article = process_article(article)
+def save_to_ndjson(articles: List[Dict], filename: str = 'curated_articles.ndjson') -> None:
+    """
+    Save curated articles to NDJSON file.
+    Each line contains one JSON object.
+    """
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            for article in articles:
+                wrapped_article = {"results": article}
+                json_line = json.dumps(wrapped_article, ensure_ascii=False)
+                f.write(json_line + '\n')
         
-        print(f"Title: {processed_article['title']}")
-        print(f"URL: {processed_article['url']}")
-        print(f"Updated at: {processed_article['updated_at']}")
-        print(f"Outdated: {processed_article['outdated']}")
-        print(f"Labels: {', '.join(processed_article['labels'])}")
-        print(f"\nCleaned Body:\n{processed_article['body']}")
-        print(f"\n{'='*50}")
-        print(f"Raw Body:\n{processed_article['raw_body'][:200]}...")
-    else:
+        print(f"Successfully saved {len(articles)} articles to {filename}")
+        
+    except Exception as e:
+        print(f"Error saving to NDJSON: {e}")
+
+def load_from_ndjson(filename: str) -> List[Dict]:
+    """Load articles from NDJSON file."""
+    articles = []
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    data = json.loads(line)
+                    if "results" in data:
+                        articles.append(data["results"])
+                    else:
+                        # Handle old format without wrapper
+                        articles.append(data)
+        print(f"Loaded {len(articles)} articles from {filename}")
+        return articles
+    except Exception as e:
+        print(f"Error loading from NDJSON: {e}")
+        return []
+
+def main():
+    """Main function to process all articles and save to NDJSON."""
+    print("Starting article curation process...")
+    
+    # Option 1: Fetch all articles (recommended for complete dataset)
+    print("Fetching all articles...")
+    all_articles = fetch_all_articles()
+    
+    if not all_articles:
+        print("No articles found. Exiting.")
+        return
+    
+    print(f"Found {len(all_articles)} articles. Processing...")
+    
+    # Curate articles
+    curated_articles = []
+    for i, article in enumerate(all_articles):
+        try:
+            curated_article = curate_article(article)
+            curated_articles.append(curated_article)
+            
+            if (i + 1) % 50 == 0:
+                print(f"Processed {i + 1}/{len(all_articles)} articles")
+                
+        except Exception as e:
+            print(f"Error processing article {article.get('id', 'unknown')}: {e}")
+            continue
+    
+    # Save to NDJSON
+    output_filename = 'curated_zendesk_articles.ndjson'
+    save_to_ndjson(curated_articles, output_filename)
+    
+    # Display sample
+    if curated_articles:
+        print(f"\nSample curated article:")
+        sample = curated_articles[0]
+        for key, value in sample.items():
+            if key == 'body':
+                print(f"{key}: {str(value)[:200]}..." if len(str(value)) > 200 else f"{key}: {value}")
+            else:
+                print(f"{key}: {value}")
+
+def search_and_curate(query: str, max_pages: int = 10):
+    """Alternative function to search and curate specific articles."""
+    print(f"Searching for articles with query: '{query}'")
+    
+    search_results = fetch_cda(query, max_pages)
+    articles = search_results.get('results', [])
+    
+    if not articles:
         print("No articles found for the query.")
+        return
+    
+    print(f"Found {len(articles)} articles. Processing...")
+    
+    curated_articles = []
+    for article in articles:
+        try:
+            curated_article = curate_article(article)
+            curated_articles.append(curated_article)
+        except Exception as e:
+            print(f"Error processing article {article.get('id', 'unknown')}: {e}")
+            continue
+    
+    # Save to NDJSON
+    filename = f'search_results_{query.replace(" ", "_")}.ndjson'
+    save_to_ndjson(curated_articles, filename)
+    
+    return curated_articles
+
+if __name__ == "__main__":
+    # Option 1: Process all articles
+    main()
+    
+    # Option 2: Search specific query (uncomment to use)
+    # search_and_curate("paypal nequi", max_pages=5)
