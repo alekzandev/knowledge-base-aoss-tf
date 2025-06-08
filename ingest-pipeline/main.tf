@@ -34,7 +34,7 @@ variable "s3_bucket_name" {
 variable "opensearch_endpoint" {
   description = "OpenSearch Serverless collection endpoint"
   type        = string
-  default     = "https://a17qo485brw77b6yre4d.us-east-1.aoss.amazonaws.com"
+  default     = "https://ws4l1vy1s2snx4ajz8oe.us-east-1.aoss.amazonaws.com"
 }
 
 variable "network_policy_name" {
@@ -64,7 +64,7 @@ variable "scan_start_time" {
 variable "scan_end_time" {
   description = "End time for S3 scan (ISO 8601 format)"
   type        = string
-  default     = "2025-06-03T23:59:59"
+  default     = "2025-06-08T23:59:59"
 }
 
 variable "vpc_id" {
