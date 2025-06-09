@@ -27,6 +27,12 @@ variable "ingestion_role_arn" {
   default     = ""
 }
 
+variable "lambda_role_arn" {
+  description = "ARN of the Lambda role for AOSS API call (optional)"
+  type        = string
+  default     = ""
+}
+
 variable "allow_public_access" {
   description = "Whether to allow public access to the collection"
   type        = bool

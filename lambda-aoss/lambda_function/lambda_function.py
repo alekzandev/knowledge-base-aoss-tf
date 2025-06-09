@@ -128,7 +128,7 @@ def build_search_query(query_text, query_type, size, body):
             "size": size,
             "query": {
                 "match": {
-                    "body": query_text
+                    "results.body": query_text
                 }
             }
         }
@@ -139,7 +139,7 @@ def build_search_query(query_text, query_type, size, body):
             "query": {
                 "multi_match": {
                     "query": query_text,
-                    "fields": ["title^2", "body"],
+                    "fields": ["results.title^2", "results.body"],
                     "type": "best_fields",
                     "fuzziness": "AUTO"
                 }
@@ -147,7 +147,7 @@ def build_search_query(query_text, query_type, size, body):
             "highlight": {
                 "fields": {
                     "title": {},
-                    "body": {
+                    "results.body": {
                         "fragment_size": 150,
                         "number_of_fragments": 3
                     }
@@ -188,7 +188,7 @@ def build_search_query(query_text, query_type, size, body):
                     "should": [
                         {
                             "match": {
-                                "title": {
+                                "results.title": {
                                     "query": query_text,
                                     "boost": 2.0
                                 }
@@ -196,7 +196,7 @@ def build_search_query(query_text, query_type, size, body):
                         },
                         {
                             "match": {
-                                "body": {
+                                "results.body": {
                                     "query": query_text
                                 }
                             }

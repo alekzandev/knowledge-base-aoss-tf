@@ -12,13 +12,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Variables
-variable "ingestion_role_arn" {
-  description = "ARN of the IAM role for OpenSearch Ingestion"
-  type        = string
-  default     = "arn:aws:iam::289269610742:role/OpenSearchIngestion-nequi-kb-ingest-pipeline-role"
-}
-
 # Create AOSS collection using the module
 module "nequi_kb_collection" {
   source = "../../modules/aoss-collection"
@@ -35,6 +28,7 @@ module "nequi_kb_collection" {
 
   # Optional: Add ingestion role for data pipelines
   ingestion_role_arn = var.ingestion_role_arn
+  lambda_role_arn    = var.lambda_role_arn
 
   # Security settings (matching your working config)
   allow_public_access = true

@@ -29,7 +29,7 @@ resource "aws_iam_role_policy" "lambda_aoss_policy" {
         Action = [
           "aoss:APIAccessAll"
         ]
-        Resource = "arn:aws:aoss:${var.aws_region}:${data.aws_caller_identity.current.account_id}:collection/${var.collection_name}"
+        Resource = "arn:aws:aoss:${var.aws_region}:${data.aws_caller_identity.current.account_id}:collection/*"
       },
       {
         Effect = "Allow"
