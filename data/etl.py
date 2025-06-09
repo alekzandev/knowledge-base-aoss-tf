@@ -135,7 +135,7 @@ def curate_article(article: dict) -> dict:
         'html_url': article.get('html_url', ''),
         'updated_at': article.get('updated_at', ''),
         'title': article.get('title', ''),
-        'outdated': article.get('outdated', False),
+        'created_at': article.get('created_at', ''),
         'section_id': article.get('section_id'),
         'body': clean_html_content(article.get('body', ''))
     }
@@ -148,8 +148,8 @@ def save_to_ndjson(articles: List[Dict], filename: str = 'curated_articles.ndjso
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             for article in articles:
-                wrapped_article = {"results": article}
-                json_line = json.dumps(wrapped_article, ensure_ascii=False)
+                #wrapped_article = {"results": article}
+                json_line = json.dumps(article, ensure_ascii=False)
                 f.write(json_line + '\n')
         
         print(f"Successfully saved {len(articles)} articles to {filename}")
